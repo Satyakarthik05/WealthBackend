@@ -5,6 +5,7 @@ const jwt = require("jsonwebtoken");
 const axios = require("axios");
 const CallExecutive = require("../Models/CallExecutiveModel");
 const AWS = require("aws-sdk");
+const { Expo } = require("expo-server-sdk");
 
 const Customer = require("../Models/Customer");
 const Core = require("../Models/CoreModel");
@@ -20,6 +21,8 @@ const s3 = new AWS.S3({
   secretAccessKey: "iR3LmdccytT8oLlEOfJmFjh6A7dIgngDltCnsYV8",
   region: "us-east-1",
 });
+
+const expo = new Expo();
 
 // Helper function to upload to S3 and return CloudFront URL
 const uploadToS3 = async (file, folderName) => {
@@ -185,12 +188,28 @@ const AgentSign = async (req, res) => {
 
       await newAgent.save();
 
-      
+      // Socket.IO notification
       io.emit("new_agent", {
         agent: newAgent,
         message: `New agent ${FullName} registered!`,
-        sound: true, 
+        sound: true,
       });
+
+      // Send push notification to all active call executives
+      await sendPushToActiveExecutives(
+        "New Agent Registration",
+        `${FullName} has registered as a new agent in ${District}. Mobile: ${MobileNumber}`,
+        {
+          type: "NEW_AGENT",
+          agentId: newAgent._id.toString(),
+          agentName: FullName,
+          
+          mobileNumber: MobileNumber,
+          district: District,
+          constituency: Contituency,
+          timestamp: new Date().toISOString()
+        }
+      );
 
       // Send SMS (your existing code)
       let smsResponse;
@@ -247,6 +266,125 @@ const AgentSign = async (req, res) => {
     res.status(500).json({ message: "Internal Server Error" });
   }
 };
+
+// Add this helper function at the top of your controller file or import it
+const sendPushToActiveExecutives = async (title, message, data = {}) => {
+  try {
+    // Get all active executives with push tokens
+    const activeExecutives = await CallExecutive.find({
+      status: "active",
+      expoPushToken: { $exists: true, $ne: null },
+      "notificationSettings.agents": true // Only send to executives who have agent notifications enabled
+    });
+
+    if (!activeExecutives.length) {
+      console.log("No active executives with agent notifications enabled");
+      return;
+    }
+
+    const expoMessages = [];
+    const fcmMessages = [];
+
+    activeExecutives.forEach(executive => {
+      const notificationData = {
+        ...data,
+        notificationType: data?.type || "NEW_AGENT",
+        type: data?.type || "NEW_AGENT",
+        sentAt: new Date().toISOString(),
+        executiveId: executive._id.toString()
+      };
+
+      if (Expo.isExpoPushToken(executive.expoPushToken)) {
+        // Expo push notification
+        expoMessages.push({
+          to: executive.expoPushToken,
+          sound: "siren.mp3",
+          title,
+          body: message,
+          data: notificationData,
+          priority: "high",
+          channelId: "default"
+        });
+      } else {
+        // FCM push notification
+        fcmMessages.push({
+          token: executive.expoPushToken,
+          notification: {
+            title,
+            body: message,
+          },
+          data: notificationData,
+          android: {
+            priority: "high",
+            notification: {
+              channelId: "default",
+              sound: "siren",
+            },
+          },
+        });
+      }
+    });
+
+    // Send Expo notifications
+    if (expoMessages.length > 0) {
+      await sendExpoNotifications(expoMessages);
+    }
+
+    // Send FCM notifications
+    if (fcmMessages.length > 0) {
+      await sendFcmNotifications(fcmMessages);
+    }
+
+    console.log(`Agent registration notifications sent to ${activeExecutives.length} active executives`);
+  } catch (error) {
+    console.error("Error sending push notifications for new agent:", error);
+  }
+};
+
+// Helper function for Expo notifications
+async function sendExpoNotifications(messages) {
+  if (!messages.length) return [];
+
+  const chunks = expo.chunkPushNotifications(messages);
+  const results = [];
+
+  for (const chunk of chunks) {
+    try {
+      const receipts = await expo.sendPushNotificationsAsync(chunk);
+      results.push(...receipts);
+    } catch (error) {
+      console.error("Error sending Expo chunk:", error);
+      results.push({ error: error.message });
+    }
+  }
+
+  return results;
+}
+
+// Helper function for FCM notifications
+async function sendFcmNotifications(messages) {
+  if (!messages.length) return [];
+
+  const results = [];
+
+  for (const message of messages) {
+    try {
+      const response = await admin.messaging().send(message);
+      results.push({
+        success: true,
+        messageId: response,
+      });
+    } catch (error) {
+      console.error("Error sending FCM:", error);
+      results.push({
+        success: false,
+        error: error.message,
+      });
+    }
+  }
+
+  return results;
+}
 
 const callassign = async (req, res) => {
   const io = req.app.get("io");

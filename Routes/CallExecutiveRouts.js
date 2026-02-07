@@ -16,7 +16,8 @@ const {
   ExecutiveLogin,
   ExecutiveActive,
   executiveNotification,
-  pendingcalls
+  pendingcalls,
+  Updatepushtoken
 } = require("../Controllers/CallExecutiveController");
 const callcentertoken = require("../middleWares/callcentertoken");
 
@@ -40,5 +41,6 @@ router.patch("/:id/notification-settings",executiveNotification)
 router.get('/:id/pending-items/agents',pendingcalls)
 router.patch("/:id/toggle-status", toggleStatus);
 router.get("/:id/status", getStatus);
+router.patch("/:id/pushtoken",Updatepushtoken);
 
 module.exports = router;

@@ -189,6 +189,52 @@ const getStatus = async (req, res) => {
   }
 };
 
+const Updatepushtoken = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { expoPushToken } = req.body;
+
+    const executive = await CallExecutive.findById(id);
+
+    if (!executive) {
+      return res.status(404).json({ message: "Call executive not found" });
+    }
+
+    // 1. If no token exists in DB → save new token
+    if (!executive.expoPushToken) {
+      executive.expoPushToken = expoPushToken;
+      await executive.save();
+
+      return res.status(200).json({
+        message: "Expo push token saved successfully",
+        expoPushToken: executive.expoPushToken,
+      });
+    }
+
+    // 2. If existing token is same → no need to update
+    if (executive.expoPushToken === expoPushToken) {
+      return res.status(200).json({
+        message: "Token already up to date",
+        expoPushToken: executive.expoPushToken,
+      });
+    }
+
+    // 3. If token exists and is different → update
+    executive.expoPushToken = expoPushToken;
+    await executive.save();
+
+    res.status(200).json({
+      message: "Expo push token updated successfully",
+      expoPushToken: executive.expoPushToken,
+    });
+
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+
+
 const myagents = async (req, res) => {
   try {
     // 1. Validate and convert AgentId
@@ -739,5 +785,6 @@ module.exports = {
   ExecutiveLogin,
   ExecutiveActive,
   executiveNotification,
-  pendingcalls
+  pendingcalls,
+  Updatepushtoken
 };

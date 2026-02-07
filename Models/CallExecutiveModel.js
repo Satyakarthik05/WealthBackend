@@ -19,6 +19,10 @@ const callExecutiveSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
+    expoPushToken: { 
+      type: String, 
+      unique: true,
+    },
     assignedType: {
       type: String,
     },
