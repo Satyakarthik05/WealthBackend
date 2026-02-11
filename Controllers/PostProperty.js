@@ -77,8 +77,7 @@ const updateReferralAndPostedData = async () => {
     }
 
     console.log(
-      `Successfully updated referral and posted counts for ${
-        allAgents.length
+      `Successfully updated referral and posted counts for ${allAgents.length
       } agents at ${new Date()}`
     );
   } catch (error) {
@@ -342,10 +341,15 @@ const createProperty = async (req, res) => {
       .slice(2)
       .join("/")}`;
 
+    console.log(`File uploaded successfully: ${cloudFrontUrl}`);
     return cloudFrontUrl;
   };
 
   try {
+    console.log("createProperty endpoint hit");
+    console.log("Request Body:", JSON.stringify(req.body, null, 2));
+    console.log("Request Files:", req.files ? req.files.length : "No files");
+
     let {
       propertyType,
       location,
@@ -358,24 +362,29 @@ const createProperty = async (req, res) => {
     } = req.body;
 
     if (!PostedBy) {
+      console.error("Missing PostedBy field");
       return res
         .status(400)
         .json({ message: "PostedBy (MobileNumber) is required." });
     }
 
     if (!req.files || req.files.length === 0) {
+      console.error("No files provided");
       return res
         .status(400)
         .json({ message: "At least one photo is required." });
     }
 
     if (req.files.length > 6) {
+      console.error("Too many files");
       return res.status(400).json({ message: "Maximum 6 photos allowed." });
     }
 
     // Upload all files to S3 and get CloudFront URLs
+    console.log("Starting S3 upload...");
     const uploadPromises = req.files.map((file) => uploadToS3(file));
     const cloudFrontUrls = await Promise.all(uploadPromises);
+    console.log("S3 upload complete. URLs:", cloudFrontUrls);
 
     // Format the URLs exactly like your migration script
     const newImageUrls =
@@ -384,6 +393,7 @@ const createProperty = async (req, res) => {
     // For backward compatibility, we'll also store in photo field
     const photo = newImageUrls;
 
+    console.log("Saving property to database...");
     const newProperty = new Property({
       propertyType,
       location,
@@ -403,6 +413,7 @@ const createProperty = async (req, res) => {
       sound: true,
     });
     await newProperty.save();
+    console.log("Property saved successfully:", newProperty._id);
 
     // Executive assignment logic remains the same
     const callExecutives = await CallExecutive.find({

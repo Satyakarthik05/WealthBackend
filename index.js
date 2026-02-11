@@ -40,6 +40,10 @@ const socketIO = require("socket.io");
 
 const app = express();
 app.use(express.json());
+app.use((req, res, next) => {
+  console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
+  next();
+});
 app.use("/uploads", express.static("uploads"));
 app.use("/coreClients", express.static(path.join(__dirname, "coreClients")));
 app.use("/coreProjects", express.static(path.join(__dirname, "coreProjects")));
@@ -58,6 +62,12 @@ app.use(bodyParser.json({ limit: "50mb" }));
 app.use(bodyParser.urlencoded({ limit: "50mb", extended: true }));
 
 app.use(express.json({ limit: "50mb" }));
+
+// Global error handler
+app.use((err, req, res, next) => {
+  console.error(`[${new Date().toISOString()}] Unhandled Error:`, err);
+  res.status(500).json({ message: "Internal Server Error", error: err.message });
+});
 app.use(express.urlencoded({ limit: "50mb", extended: true }));
 
 const corsOptions = {
