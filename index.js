@@ -40,8 +40,6 @@ const socketIO = require("socket.io");
 
 const app = express();
 app.use(express.json());
-app.use(bodyParser.json());
-app.use(bodyParser.urlencoded({ extended: true }));
 app.use("/uploads", express.static("uploads"));
 app.use("/coreClients", express.static(path.join(__dirname, "coreClients")));
 app.use("/coreProjects", express.static(path.join(__dirname, "coreProjects")));
@@ -274,7 +272,7 @@ async function sendFcmNotifications(messages) {
 
 // const fs = require('fs');
 const googleTTS = require('google-tts-api');
-const fetch = (...args) => import('node-fetch').then(({default: fetch}) => fetch(...args));
+const fetch = (...args) => import('node-fetch').then(({ default: fetch }) => fetch(...args));
 
 const text = "ప్రియమైన వెల్త్ అసోసియేట్, గుంటూరులో 30,000 రూపాయలకు ఒక అపార్ట్‌మెంట్ అమ్మకానికి ఉంది. మరిన్ని వివరాల కోసం 7796356789 నంబర్‌ను సంప్రదించండి"
 
@@ -313,7 +311,7 @@ let stats = {
   nris: 10,
 };
 function incrementStat(key) {
-  switch(key) {
+  switch (key) {
     case 'agents':
       stats.agents += Math.floor(Math.random() * 3); // 0-2
       break;
