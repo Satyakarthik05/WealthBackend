@@ -38,11 +38,6 @@ const axios = require("axios");
 const axiosRetry = require("axios-retry");
 const socketIO = require("socket.io");
 
-const options = {
-  key: fs.readFileSync("privatekey.pem"),
-  cert: fs.readFileSync("certificate.pem"),
-};
-
 const app = express();
 app.use(express.json());
 app.use(bodyParser.json());
@@ -273,34 +268,9 @@ async function sendFcmNotifications(messages) {
   return results;
 }
 // Create HTTPS server
-const httpsServer = https.createServer(options, app);
-
-// Attach socket.io to HTTPS server
-const io = socketIO(httpsServer, {
-  cors: {
-    origin: "*", // In production, replace with allowed domain(s)
-    methods: ["GET", "POST"],
-    credentials: true,
-  },
-});
-
-// Start HTTPS server on port 443
-httpsServer.listen(443, () => {
-  console.log("HTTPS server with Socket.IO running on port 443");
-});
-
-// // Redirect HTTP traffic to HTTPS
-http.createServer((req, res) => {
-  res.writeHead(301, {
-    Location: "https://" + req.headers["host"] + req.url,
-  });
-  res.end();
-}).listen(80, () => {
-  console.log("Redirecting HTTP to HTTPS");
-});
 
 
-
+// Start HTTPS server on p
 
 // const fs = require('fs');
 const googleTTS = require('google-tts-api');
@@ -386,4 +356,16 @@ app.get('/nriscountrandom', (req, res) => {
   res.json({ nris: stats.nris });
 });
 
-app.set('io', io);
+const server = app.listen(3000, () => {
+  console.log("Backend running on port 3000");
+});
+
+const io = socketIO(server, {
+  cors: {
+    origin: "*",
+    methods: ["GET", "POST"],
+    credentials: true,
+  },
+});
+
+app.set("io", io);
